@@ -41,6 +41,7 @@ This Shiny application provides comprehensive tools for analyzing protein and co
    ⚠️ Important: This repository contains only a subset of data files needed for reciprocal plots. For full functionality of reciprocal plots, download the complete tem_chunks data:
 
    📦 Download: tem_chunks_full.zip from Zenodo
+   
    📂 Extract to: data/tem_chunks/
 
 4. **Install required R packages:**
@@ -50,6 +51,7 @@ This Shiny application provides comprehensive tools for analyzing protein and co
    ```
 
 5. **Run the app:**
+   
    Open app.R and run the app
    ```r
    shiny::runApp(".")
