@@ -5,6 +5,13 @@
 .Rhistory
 .Rproj.user/
 
-# Large data chunk folders
-data/tem_chunks/rz/
-data/tem_chunks/z/
+# Large data chunk folders - ignore files 51-201
+data/tem_chunks/rz/5[1-9].Rdata
+data/tem_chunks/rz/[6-9][0-9].Rdata
+data/tem_chunks/rz/1[0-9][0-9].Rdata
+data/tem_chunks/rz/20[0-1].Rdata
+
+data/tem_chunks/z/5[1-9].Rdata
+data/tem_chunks/z/[6-9][0-9].Rdata
+data/tem_chunks/z/1[0-9][0-9].Rdata
+data/tem_chunks/z/20[0-1].Rdata

@@ -362,43 +362,105 @@ server <- function(input, output, session) {
   # Create reactive value for download data (put this near top of server, before observeEvents)
   protein_recip_data <- reactiveVal(NULL)
   
+  # observeEvent(input$protein_recip_plot, {
+  #   req(input$protein_recip_poi)
+  #   
+  #   withProgress(message = 'Reciprocal Analysis : ', value = 0, {
+  #     
+  #     setProgress(0.75, detail = "Reciprocating 🔄 .....")
+  #     
+  #     # Get reciprocal plot data
+  #     recip_data <- get_info_from_reciprocal_plot(
+  #       prot = input$protein_recip_poi,
+  #       label_threshold = input$protein_recip_threshold
+  #     )
+  #     
+  #     # Create plot
+  #     p <- get_reciprocal_plot(recip_data, input$protein_recip_poi)
+  #     
+  #     output$main_plot <- renderPlotly(p)
+  #     
+  #     # Prepare download data
+  #     download_data <- recip_data %>% 
+  #       arrange(desc(distances)) %>% 
+  #       transmute(Protein = protein, Category = category, 
+  #                 Z = self, Reciprocal_Z = other, Deviation = distances, 
+  #                 PPI_Score = ppi_score, In_BioGRID = in_biogrid)
+  #     
+  #     # Show table (top 100)
+  #     output$data_table <- renderTable(
+  #       head(download_data, 100),
+  #       striped = TRUE, bordered = TRUE, hover = TRUE
+  #     )
+  #     
+  #     # Store for download
+  #     protein_recip_data(download_data)
+  #     
+  #     setProgress(1, detail = "Complete!")
+  #   })
+  # })
+  
+  
+  
   observeEvent(input$protein_recip_plot, {
     req(input$protein_recip_poi)
     
-    withProgress(message = 'Reciprocal Analysis : ', value = 0, {
+    # TRY to generate plot, CATCH errors gracefully ← NEW
+    result <- tryCatch({
       
-      setProgress(0.75, detail = "Reciprocating 🔄 .....")
+      withProgress(message = 'Reciprocal Analysis : ', value = 0, {
+        
+        setProgress(0.75, detail = "Reciprocating 🔄 .....")
+        
+        # Get reciprocal plot data
+        recip_data <- get_info_from_reciprocal_plot(
+          prot = input$protein_recip_poi,
+          label_threshold = input$protein_recip_threshold
+        )
+        
+        # Create plot
+        p <- get_reciprocal_plot(recip_data, input$protein_recip_poi)
+        
+        output$main_plot <- renderPlotly(p)
+        
+        # Prepare download data
+        download_data <- recip_data %>% 
+          arrange(desc(distances)) %>% 
+          transmute(Protein = protein, Category = category, 
+                    Z = self, Reciprocal_Z = other, Deviation = distances, 
+                    PPI_Score = ppi_score, In_BioGRID = in_biogrid)
+        
+        # Show table (top 100)
+        output$data_table <- renderTable(
+          head(download_data, 100),
+          striped = TRUE, bordered = TRUE, hover = TRUE
+        )
+        
+        # Store for download
+        protein_recip_data(download_data)
+        
+        setProgress(1, detail = "Complete!")
+      })
       
-      # Get reciprocal plot data
-      recip_data <- get_info_from_reciprocal_plot(
-        prot = input$protein_recip_poi,
-        label_threshold = input$protein_recip_threshold
-      )
+      return("success")  # If we get here, it worked
       
-      # Create plot
-      p <- get_reciprocal_plot(recip_data, input$protein_recip_poi)
-      
-      output$main_plot <- renderPlotly(p)
-      
-      # Prepare download data
-      download_data <- recip_data %>% 
-        arrange(desc(distances)) %>% 
-        transmute(Protein = protein, Category = category, 
-                  Z = self, Reciprocal_Z = other, Deviation = distances, 
-                  PPI_Score = ppi_score, In_BioGRID = in_biogrid)
-      
-      # Show table (top 100)
-      output$data_table <- renderTable(
-        head(download_data, 100),
-        striped = TRUE, bordered = TRUE, hover = TRUE
-      )
-      
-      # Store for download
-      protein_recip_data(download_data)
-      
-      setProgress(1, detail = "Complete!")
+    }, error = function(e) {
+      # HANDLE ERROR - show message instead of crashing
+      showModal(modalDialog(
+        title = "⚠️ Incomplete Data",
+        HTML(paste0(
+          "<p><strong>", e$message, "</strong></p>",
+          "<p>The app will continue to work for other features.</p>"
+        )),
+        easyClose = TRUE,
+        footer = modalButton("OK")
+      ))
+      return("error")
     })
-  })
+    
+  })  # ← Close observeEvent
+  
+  
   
   # Add download handler (put this after the observeEvent above)
   output$protein_recip_download <- downloadHandler(

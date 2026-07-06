@@ -284,6 +284,7 @@ get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
   return(p)
 }
 
+
 get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   
   # Load protein index
@@ -298,20 +299,35 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   chunk_num <- ceiling(idx / chunk_size)
   row_in_chunk <- ((idx - 1) %% chunk_size) + 1
   
-  # Load chunks
+  # CHECK IF FILES EXIST BEFORE LOADING ← NEW
+  z_file <- sprintf("data/tem_chunks/z/%d.Rdata", chunk_num)
+  rz_file <- sprintf("data/tem_chunks/rz/%d.Rdata", chunk_num)
+  
+  if (!file.exists(z_file) || !file.exists(rz_file)) {
+    stop(paste0(
+      "INCOMPLETE DATA: Missing chunk files for protein '", prot, "'.\n\n",
+      "You have an incomplete version of the tem_chunks folder.\n",
+      "Please download the full version from:\n",
+      "https://zenodo.org/record/YOUR_RECORD_ID\n\n",  # ← REPLACE WITH YOUR ACTUAL ZENODO LINK
+      "Then replace the tem_chunks folder in your data directory."
+    ))
+  }
+  # ← END NEW CODE
+  
+  # Load chunks (rest of function stays the same)
   z_key <- as.character(chunk_num)
   if (!exists(z_key, envir = z_cache)) {
-    z_cache[[z_key]] <- readRDS(sprintf("data/tem_chunks/z/%d.Rdata", chunk_num))
+    z_cache[[z_key]] <- readRDS(z_file)
   }
   if (!exists(z_key, envir = rz_cache)) {
-    rz_cache[[z_key]] <- readRDS(sprintf("data/tem_chunks/rz/%d.Rdata", chunk_num))
+    rz_cache[[z_key]] <- readRDS(rz_file)
   }
   
+  # ... rest of your existing code stays exactly the same ...
   # Extract data
   row_data <- z_cache[[z_key]][row_in_chunk, ]
   col_data <- rz_cache[[z_key]][, row_in_chunk]
   
-  # Create dataframe
   tub <- data.frame(
     protein = all_proteins,
     self = as.numeric(row_data),
@@ -320,20 +336,13 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   )
   rownames(tub) <- tub$protein
   
-  # REMOVE THE POI ITSELF (the self-interaction)
-  tub <- tub[tub$protein != prot, ]  # ← Remove by name
-  
-  # Remove NAs
+  tub <- tub[tub$protein != prot, ]
   tub <- tub[!is.na(tub$self), ]
-  
-  # Arrange by self
   tub <- tub %>% arrange(self)
   
-  # First spline fit
   fit <- smooth.spline(tub$self, tub$other, df = 18000, spar = NULL)
   tub$predicted <- predict(fit, x = tub$self)$y
   
-  # Remove outliers on right side
   hya <- tub %>% 
     arrange(desc(self)) %>% 
     slice(1:50) %>% 
@@ -346,25 +355,19 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   tub2 <- tub[!rownames(tub) %in% rownames(hya), ]
   tub2 <- tub2[abs(tub2$other - tub2$predicted) < 0.01, ]
   
-  # Second refined spline fit
   fit2 <- smooth.spline(tub2$self, tub2$other, df = 1000, spar = NULL)
   tub$predicted <- predict(fit2, x = tub$self)$y
   tub <- tub %>% mutate(distances = other - predicted)
   
-
-  # Get PPI scores and BioGRID info - SAFE indexing
   ppi_row <- PPI_sparse[prot, ]
   biogrid_row <- Biogrid_binary[prot, ]
   
   tub$ppi_score <- as.numeric(ppi_row[tub$protein])
   tub$in_biogrid <- as.logical(biogrid_row[tub$protein])
   
-  # Replace NAs with defaults
   tub$ppi_score[is.na(tub$ppi_score)] <- 0
   tub$in_biogrid[is.na(tub$in_biogrid)] <- FALSE
   
-  
-  # Assign categories and colors
   tub$category <- ifelse(
     tub$ppi_score >= 2 & tub$in_biogrid,
     "Popularity-corrected",
@@ -385,14 +388,12 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
     )
   )
   
-  # Label based on distance threshold
   tub$label <- ifelse(
     tub$distances > label_threshold,
     tub$protein,
     ""
   )
   
-  # Arrange by self for plotting
   tub <- tub %>% arrange(self)
   
   return(tub)
@@ -506,4 +507,119 @@ get_reciprocal_plot <- function(recip_data, poi) {
   return(p)
 }
 
+
+#This function worked before the error for downloading tem_chunks from zenodo was setup.
+get_info_from_reciprocal_plot_backup <- function(prot, label_threshold = 0.5) {
+  
+  # Load protein index
+  protein_index <- readRDS("data/tem_chunks/protein_index.rds")
+  all_proteins <- protein_index$protein
+  
+  # Find protein index and chunk
+  idx <- protein_index$index[protein_index$protein == prot]
+  if (length(idx) == 0) stop("Protein not found: ", prot)
+  
+  chunk_size <- 100
+  chunk_num <- ceiling(idx / chunk_size)
+  row_in_chunk <- ((idx - 1) %% chunk_size) + 1
+  
+  # Load chunks
+  z_key <- as.character(chunk_num)
+  if (!exists(z_key, envir = z_cache)) {
+    z_cache[[z_key]] <- readRDS(sprintf("data/tem_chunks/z/%d.Rdata", chunk_num))
+  }
+  if (!exists(z_key, envir = rz_cache)) {
+    rz_cache[[z_key]] <- readRDS(sprintf("data/tem_chunks/rz/%d.Rdata", chunk_num))
+  }
+  
+  # Extract data
+  row_data <- z_cache[[z_key]][row_in_chunk, ]
+  col_data <- rz_cache[[z_key]][, row_in_chunk]
+  
+  # Create dataframe
+  tub <- data.frame(
+    protein = all_proteins,
+    self = as.numeric(row_data),
+    other = as.numeric(col_data),
+    stringsAsFactors = FALSE
+  )
+  rownames(tub) <- tub$protein
+  
+  # REMOVE THE POI ITSELF (the self-interaction)
+  tub <- tub[tub$protein != prot, ]  # ← Remove by name
+  
+  # Remove NAs
+  tub <- tub[!is.na(tub$self), ]
+  
+  # Arrange by self
+  tub <- tub %>% arrange(self)
+  
+  # First spline fit
+  fit <- smooth.spline(tub$self, tub$other, df = 18000, spar = NULL)
+  tub$predicted <- predict(fit, x = tub$self)$y
+  
+  # Remove outliers on right side
+  hya <- tub %>% 
+    arrange(desc(self)) %>% 
+    slice(1:50) %>% 
+    mutate(diff = abs(self - lead(self)))
+  
+  hya <- hya %>% 
+    mutate(z_diff = (diff - mean(hya$diff[10:49], na.rm = TRUE)) / sd(hya$diff[10:49], na.rm = TRUE)) %>% 
+    filter(z_diff > 50)
+  
+  tub2 <- tub[!rownames(tub) %in% rownames(hya), ]
+  tub2 <- tub2[abs(tub2$other - tub2$predicted) < 0.01, ]
+  
+  # Second refined spline fit
+  fit2 <- smooth.spline(tub2$self, tub2$other, df = 1000, spar = NULL)
+  tub$predicted <- predict(fit2, x = tub$self)$y
+  tub <- tub %>% mutate(distances = other - predicted)
+  
+  
+  # Get PPI scores and BioGRID info - SAFE indexing
+  ppi_row <- PPI_sparse[prot, ]
+  biogrid_row <- Biogrid_binary[prot, ]
+  
+  tub$ppi_score <- as.numeric(ppi_row[tub$protein])
+  tub$in_biogrid <- as.logical(biogrid_row[tub$protein])
+  
+  # Replace NAs with defaults
+  tub$ppi_score[is.na(tub$ppi_score)] <- 0
+  tub$in_biogrid[is.na(tub$in_biogrid)] <- FALSE
+  
+  
+  # Assign categories and colors
+  tub$category <- ifelse(
+    tub$ppi_score >= 2 & tub$in_biogrid,
+    "Popularity-corrected",
+    ifelse(
+      tub$ppi_score >= 2 & !tub$in_biogrid,
+      "Predicted",
+      "Unassociated"
+    )
+  )
+  
+  tub$point_color <- ifelse(
+    tub$ppi_score >= 2 & tub$in_biogrid,
+    "#487A9C",
+    ifelse(
+      tub$ppi_score >= 2 & !tub$in_biogrid,
+      "#FB8451",
+      "#E8E8E8"
+    )
+  )
+  
+  # Label based on distance threshold
+  tub$label <- ifelse(
+    tub$distances > label_threshold,
+    tub$protein,
+    ""
+  )
+  
+  # Arrange by self for plotting
+  tub <- tub %>% arrange(self)
+  
+  return(tub)
+}
 
