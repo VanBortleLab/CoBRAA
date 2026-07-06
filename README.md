@@ -34,22 +34,23 @@ This Shiny application provides comprehensive tools for analyzing protein and co
    ```bash
    git clone https://github.com/VanBortleLab/PPI_CCI_analysis.git
    cd PPI_CCI_analysis
-
+   ```
 
 2. **Download complete data files:**
 
-⚠️ Important: This repository contains only a subset of data files needed for reciprocal plots. For full functionality of reciprocal plots, download the complete tem_chunks data:
+   ⚠️ Important: This repository contains only a subset of data files needed for reciprocal plots. For full functionality of reciprocal plots, download the complete tem_chunks data:
 
-📦 Download: tem_chunks_full.zip from Zenodo
-📂 Extract to: data/tem_chunks/
+   📦 Download: tem_chunks_full.zip from Zenodo
+   📂 Extract to: data/tem_chunks/
 
 3. **Install required R packages:**
 
-```r
-install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix"))
-```
+   ```r
+   install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix"))
+   ```
 
 4. **Run the app:**
-
-```bash
-shiny::runApp(".")
+   Open app.R and run the app
+   ```r
+   shiny::runApp(".")
+   ```
