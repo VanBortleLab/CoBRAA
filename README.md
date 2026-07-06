@@ -52,7 +52,7 @@ This Shiny application provides comprehensive tools for analyzing protein and co
 
 5. **Run the app:**
    
-   i)In terminal run
+   i) In terminal, run
    ```bash
    Rscript runapp.R
    ```
