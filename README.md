@@ -53,6 +53,11 @@ This Shiny application provides comprehensive tools for analyzing protein and co
 5. **Run the app:**
    
    Open app.R and run the app
-   ```r
-   shiny::runApp(".")
+   ```bash
+   Rscript runapp.R
    ```
+
+   Or,
+   open app.R in Rstudio and click Run app button
+
+   Click <span style="color: #22c55e;">▶</span> **Run App**
