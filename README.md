@@ -42,30 +42,10 @@ This Shiny application provides comprehensive tools for analyzing protein and co
 
 📦 Download: tem_chunks_full.zip from Zenodo
 📂 Extract to: data/tem_chunks/
-Your directory structure should look like:
-
-scss
-Copy code
-data/
-├── tem_chunks/
-│   ├── rz/
-│   │   ├── 1.Rdata
-│   │   ├── 2.Rdata
-│   │   └── ... (201 files)
-│   ├── z/
-│   │   ├── 1.Rdata
-│   │   ├── 2.Rdata
-│   │   └── ... (201 files)
-│   └── protein_index.rds
-├── PPI_sparse_sym.rds
-├── CCI_sparse_sym.rds
-└── Biogrid_binary.rds
-
 
 3. **Install required R packages:**
 
-r
-Copy code
+```bash
 install.packages(c(
   "shiny",
   "shinydashboard",
@@ -74,8 +54,9 @@ install.packages(c(
   "dplyr",
   "Matrix"
 ))
-Run the app:
 
-r
-Copy code
+
+4. **Run the app:**
+
+```bash
 shiny::runApp(".")
