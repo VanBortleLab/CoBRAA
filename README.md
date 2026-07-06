@@ -46,14 +46,7 @@ This Shiny application provides comprehensive tools for analyzing protein and co
 3. **Install required R packages:**
 
 ```bash
-install.packages(c(
-  "shiny",
-  "shinydashboard",
-  "shinyWidgets",
-  "plotly",
-  "dplyr",
-  "Matrix"
-))
+install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix"))
 
 
 4. **Run the app:**
