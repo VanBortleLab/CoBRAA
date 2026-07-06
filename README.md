@@ -43,13 +43,13 @@ This Shiny application provides comprehensive tools for analyzing protein and co
    📦 Download: tem_chunks_full.zip from Zenodo
    📂 Extract to: data/tem_chunks/
 
-3. **Install required R packages:**
+4. **Install required R packages:**
 
    ```r
    install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix"))
    ```
 
-4. **Run the app:**
+5. **Run the app:**
    Open app.R and run the app
    ```r
    shiny::runApp(".")
