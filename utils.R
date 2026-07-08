@@ -141,15 +141,17 @@ plotTetrahedron=function(data,
 get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
   
   # Get the row for protein of interest
-  tu1 <- sort(PPI_sparse[poi, ])
+  tu1 <- sort(PPI_sparse[poi, ],decreasing = T)
   
   # Get BioGRID info for this protein
   biogrid_row <- Biogrid_binary[poi, ]
   
-  # Create data frame
+  # Create data frame (tu1 is already sorted descending, so rank goes 1,2,3...)
+  n_proteins <- length(tu1)
   plot_data <- data.frame(
     protein = names(tu1),
-    index = 1:length(tu1),
+    rank = 1:n_proteins,  # Rank: 1 = highest score
+    index = n_proteins:1,  # Index reversed for x-axis (visual left-to-right)
     score = as.numeric(tu1),
     in_biogrid = as.logical(biogrid_row[names(tu1)]),
     stringsAsFactors = FALSE
@@ -209,7 +211,7 @@ get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
       hovertext = ~paste0(
         "<b>", protein, "</b><br>",
         "Category: ", category, "<br>",
-        "Rank: ", index, " / ", n_proteins, "<br>",
+        "Rank: ", rank, " / ", n_proteins, "<br>",  # ← Changed index to rank
         "Score: ", round(score, 4), "<br>",
         "In BioGRID: ", ifelse(in_biogrid, "Yes", "No")
       ),
@@ -305,11 +307,11 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   
   if (!file.exists(z_file) || !file.exists(rz_file)) {
     stop(paste0(
-      "INCOMPLETE DATA: Missing chunk files for protein '", prot, "'.\n\n",
-      "You have an incomplete version of the tem_chunks folder.\n",
+      "INCOMPLETE DATA: Missing files for protein '", prot, "'.\n\n",
+      "You have an incomplete version of the data folder.\n",
       "Please download the full version from:\n",
-      "https://zenodo.org/record/YOUR_RECORD_ID\n\n",  # ← REPLACE WITH YOUR ACTUAL ZENODO LINK
-      "Then replace the tem_chunks folder in your data directory."
+      "https://zenodo.org/records/21268626\n\n",  # ← REPLACE WITH YOUR ACTUAL ZENODO LINK
+      "and replace the old data folder in your directory."
     ))
   }
   # ← END NEW CODE

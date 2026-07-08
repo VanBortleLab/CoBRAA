@@ -12,7 +12,6 @@ library(Matrix)
 
 source("utils.R")
 
-
 # ============================================================================
 # LOAD DATA AT STARTUP
 # ============================================================================
@@ -41,9 +40,40 @@ rz_cache <<- new.env()
 
 ui <- dashboardPage(
   
-  dashboardHeader(title = "Protein & Complex Analysis"),
+  dashboardHeader(
+    title = tags$img(
+      src = "CoBRAA_logo.jpg",
+      height = "100px",width="235px",
+      style = "padding: 0px 0px; margin-left: -15px;"
+    )
+  ),
   
   dashboardSidebar(
+    tags$head(
+      tags$style(HTML("
+      .main-header .logo {
+        height: 100px;
+      }
+      .main-header .navbar {
+        height: 100px;
+      }
+      .content-wrapper, .main-sidebar {
+        margin-top: 40px;
+      }
+      body, .wrapper {
+        padding-top: 0px !important;
+      }
+      .content-wrapper > .content {
+        padding-top: 15px;
+      }
+          a.shiny-download-link {
+      color: white !important;
+          }
+        .btn-primary {
+      color: white !important;
+    }
+    "))
+    ),
     
     # Mode selection
     radioButtons(
@@ -67,7 +97,7 @@ ui <- dashboardPage(
         choices = c(
           "Popularity Corrected Interactors" = "popularity",
           "Reciprocal Analysis" = "reciprocal",
-          "Dominant Plot" = "dominant"
+          "Feature Dominance" = "dominant"
         ),
         selected = "popularity"
       ),
@@ -88,7 +118,7 @@ ui <- dashboardPage(
         ),
         actionButton("protein_pop_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
-        downloadButton("protein_pop_download", "Download Data (.tsv)")  # ← ADD THIS LINE
+        downloadButton("protein_pop_download", "Download Data (.tsv)",class = "btn-primary")  # ← ADD THIS LINE
       ),
       
       # Reciprocal inputs
@@ -108,7 +138,7 @@ ui <- dashboardPage(
         ),
         actionButton("protein_recip_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
-        downloadButton("protein_recip_download", "Download Data (.tsv)")  # ← ADD THIS
+        downloadButton("protein_recip_download", "Download Data (.tsv)",class = "btn-primary")  # ← ADD THIS
       ),
       
       # Dominant plot inputs
@@ -132,7 +162,7 @@ ui <- dashboardPage(
         
         actionButton("protein_dom_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
-        downloadButton("protein_dom_download", "Download Data")
+        downloadButton("protein_dom_download", "Download Data",class = "btn-primary")
       )
     ),
     
@@ -147,7 +177,7 @@ ui <- dashboardPage(
         "Analysis Type:",
         choices = c(
           "Network Proximal Complexes" = "network",
-          "Dominant Plot" = "dominant"
+          "Feature Dominance" = "dominant"
         ),
         selected = "network"
       ),
@@ -168,7 +198,7 @@ ui <- dashboardPage(
         ),
         actionButton("complex_net_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
-        downloadButton("complex_net_download", "Download Data (.tsv)")
+        downloadButton("complex_net_download", "Download Data (.tsv)",class = "btn-primary")
       ),
       
       # Dominant plot inputs
@@ -192,7 +222,7 @@ ui <- dashboardPage(
         
         actionButton("complex_dom_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
-        downloadButton("complex_dom_download", "Download Data")
+        downloadButton("complex_dom_download", "Download Data",class = "btn-primary")
       )
     )
   ),
@@ -331,11 +361,10 @@ server <- function(input, output, session) {
           "Popularity-corrected",
           ifelse(Score >= 2 & !In_BioGRID, "Predicted", "Unassociated")
         )
-      ) %>%
-      head(100)  # Show top 100 in table
+      )
     
     output$data_table <- renderTable(
-      table_data,
+      table_data %>% head(1000),
       striped = TRUE, bordered = TRUE, hover = TRUE
     )
     
@@ -361,46 +390,6 @@ server <- function(input, output, session) {
   # -------------------------------------------------------------------------
   # Create reactive value for download data (put this near top of server, before observeEvents)
   protein_recip_data <- reactiveVal(NULL)
-  
-  # observeEvent(input$protein_recip_plot, {
-  #   req(input$protein_recip_poi)
-  #   
-  #   withProgress(message = 'Reciprocal Analysis : ', value = 0, {
-  #     
-  #     setProgress(0.75, detail = "Reciprocating 🔄 .....")
-  #     
-  #     # Get reciprocal plot data
-  #     recip_data <- get_info_from_reciprocal_plot(
-  #       prot = input$protein_recip_poi,
-  #       label_threshold = input$protein_recip_threshold
-  #     )
-  #     
-  #     # Create plot
-  #     p <- get_reciprocal_plot(recip_data, input$protein_recip_poi)
-  #     
-  #     output$main_plot <- renderPlotly(p)
-  #     
-  #     # Prepare download data
-  #     download_data <- recip_data %>% 
-  #       arrange(desc(distances)) %>% 
-  #       transmute(Protein = protein, Category = category, 
-  #                 Z = self, Reciprocal_Z = other, Deviation = distances, 
-  #                 PPI_Score = ppi_score, In_BioGRID = in_biogrid)
-  #     
-  #     # Show table (top 100)
-  #     output$data_table <- renderTable(
-  #       head(download_data, 100),
-  #       striped = TRUE, bordered = TRUE, hover = TRUE
-  #     )
-  #     
-  #     # Store for download
-  #     protein_recip_data(download_data)
-  #     
-  #     setProgress(1, detail = "Complete!")
-  #   })
-  # })
-  
-  
   
   observeEvent(input$protein_recip_plot, {
     req(input$protein_recip_poi)
@@ -432,7 +421,7 @@ server <- function(input, output, session) {
         
         # Show table (top 100)
         output$data_table <- renderTable(
-          head(download_data, 100),
+          head(download_data, 1000),
           striped = TRUE, bordered = TRUE, hover = TRUE
         )
         
@@ -585,16 +574,22 @@ server <- function(input, output, session) {
       setProgress(0.5, detail = "Extracting complexes...")
       
       # Get the row for complex of interest
-      coi_scores <- sort(CCI_sparse[input$complex_net_coi, ])
+      coi_scores <- CCI_sparse[input$complex_net_coi, ]
       
-      # Create data frame
+      # Create data frame and REMOVE the complex of interest itself
       plot_data <- data.frame(
         complex = names(coi_scores),
-        index = 1:length(coi_scores),
         score = as.numeric(coi_scores),
-        log_score = log(as.numeric(coi_scores) + 1),  # log(score + 1)
         stringsAsFactors = FALSE
-      )
+      ) %>%
+        filter(complex != input$complex_net_coi) %>%  # ← ADD THIS LINE
+        arrange(desc(score)) %>%  # Sort by score (highest first)
+        mutate(
+          rank = row_number(),  # Rank 1 = highest score
+          log_score = log(score + 1)
+        ) %>%
+        arrange(score) %>%  # Re-sort for plotting (visual: low to high)
+        mutate(index = row_number())  # Index for x-axis
       
       # Label only top N complexes
       n_complexes <- nrow(plot_data)
@@ -631,7 +626,7 @@ server <- function(input, output, session) {
           textfont = list(size = 9, color = "black"),
           hovertext = ~paste0(
             "<b>", complex, "</b><br>",
-            "Rank: ", index, " / ", n_complexes, "<br>",
+            "Rank: ", rank, " / ", n_complexes, "<br>",
             "Score: ", round(score, 4), "<br>",
             "Log(Score+1): ", round(log_score, 4)
           ),
@@ -686,11 +681,11 @@ server <- function(input, output, session) {
       # Prepare download data
       download_data <- plot_data %>%
         arrange(desc(score)) %>%
-        select(Rank = index, Complex = complex, Score = score, Log_Score = log_score)
+        select(Rank = rank, Complex = complex, Score = score, Log_Score = log_score)
       
       # Show table (top 100)
       output$data_table <- renderTable(
-        head(download_data, 100),
+        head(download_data, 1000),
         striped = TRUE, bordered = TRUE, hover = TRUE
       )
       
