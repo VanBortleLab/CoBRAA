@@ -51,28 +51,35 @@ ui <- dashboardPage(
   dashboardSidebar(
     tags$head(
       tags$style(HTML("
-      .main-header .logo {
-        height: 100px;
-      }
-      .main-header .navbar {
-        height: 100px;
-      }
-      .content-wrapper, .main-sidebar {
-        margin-top: 40px;
-      }
-      body, .wrapper {
-        padding-top: 0px !important;
-      }
-      .content-wrapper > .content {
-        padding-top: 15px;
-      }
-          a.shiny-download-link {
-      color: white !important;
-          }
-        .btn-primary {
+    .main-header .logo {
+      height: 100px;
+    }
+    .main-header .navbar {
+      height: 100px;
+    }
+    .content-wrapper, .main-sidebar {
+      margin-top: 40px;
+    }
+    body, .wrapper {
+      padding-top: 0px !important;
+    }
+    .content-wrapper > .content {
+      padding-top: 15px;
+    }
+    a.shiny-download-link {
       color: white !important;
     }
-    "))
+    .btn-primary {
+      color: white !important;
+    }
+    /* Indent h4 headers and download buttons in sidebar */
+    .sidebar h4 {
+      margin-left: 15px;
+    }
+    .sidebar .shiny-download-link {
+      margin-left: 15px;
+    }
+  "))
     ),
     
     # Mode selection
