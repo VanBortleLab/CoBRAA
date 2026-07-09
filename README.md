@@ -1,9 +1,7 @@
-# PPI_CCI
+<img src="man/www/CoBRAA_logo.jpg" width="1200px"/>
+
+
 <img width="1031" height="892" alt="Screen Shot 2026-07-06 at 1 05 33 PM" src="https://github.com/user-attachments/assets/d44e01aa-66b3-4fd1-98fb-5b26af749163" />
-
-
-
-> **Interactive analysis of Protein-Protein Interactions (PPI) and Complex-Complex Interactions (CCI) using a popularity-bias corrected network**
 
 ---
 
