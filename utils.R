@@ -29,10 +29,13 @@ plotTetrahedron=function(data,
   #Creating a Tetrahedron and finding center of mass
   {  
     data[data<0]=0
-    vertices <- matrix(c( 1,  1,  1,
-                           1, -1, -1,
-                           -1,  1, -1,
-                           -1, -1,  1), ncol = 3, byrow = TRUE)
+
+    vertices <- matrix(c(   0,           0,  sqrt(2),  # Maps from ( 1,  1,  1)
+                            1,           0,        0,  # Maps from ( 1, -1, -1)
+                            -1/2,   sqrt(3)/2,        0,  # Maps from (-1,  1, -1)
+                            -1/2,  -sqrt(3)/2,        0), # Maps from (-1, -1,  1) This new vertices is used so that the triangle plot remains in 2d xy plane
+                       ncol = 3, byrow = TRUE)
+    
   com_=data.frame(comx=rowSums(as.matrix(data)%*%diag(vertices[,1])),
                   comy=rowSums(as.matrix(data)%*%diag(vertices[,2])),
                   comz=rowSums(as.matrix(data)%*%diag(vertices[,3])))/rowSums(data)
@@ -121,7 +124,9 @@ plotTetrahedron=function(data,
         text=NULL
       )
     }
-    
+
+        p <- p %>% layout(scene = list(
+      camera = list(eye = list(x = 0, y = 0, z = 2.5),up  = list(x = 1, y = 0, z = 0))))     #This line is added to change the viewpoint for new tetrahedorn plot which has a side in 2d xy plane. 
 
   }##Luka##
   
