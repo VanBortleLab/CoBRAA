@@ -18,7 +18,8 @@ plotTetrahedron=function(data,
                          labels=NULL,
                          output_table=F,remove_background=T,cex=1,pch=16,
                          title="",push_text=1.2,
-                         margin=5)
+                         margin=5,
+                         repel_labels=FALSE, max_labels=NULL)
 {
   #require(dplyr)
   # data=y %>% select("POLR3A","POLR3GL","POLR3C","POLR3G") %>% slice_sample(n=500)
@@ -90,16 +91,28 @@ plotTetrahedron=function(data,
       add_trace(
         data = final_bad ,
         x = ~comx,y = ~comy,z = ~comz,
-        type = 'scatter3d',mode = 'markers+text',
-        text = ~labels,textposition = 'top center',
+        type = 'scatter3d',mode = if (repel_labels) 'markers' else 'markers+text',
+        # Repelled labels are rendered separately below: suppress the original
+        # marker labels to avoid drawing each protein name twice.
+        text = if (repel_labels) '' else ~labels,
+        hovertext = ~labels,
+        hoverinfo = if (repel_labels) 'text' else 'all',
+        inherit = FALSE,
+        textposition = 'top center',
         textfont = list(size = 10, color=~color,colors=col),
         marker = list(size = 10,color=~color,colors=col )
       )  %>%   ##Now adding frontground
       add_trace(
         data = final_good ,
         x = ~comx,y = ~comy,z = ~comz,
-        type = 'scatter3d',mode = 'markers+text',
-        text = ~labels,textposition = 'top center',
+        type = 'scatter3d',mode = if (repel_labels) 'markers' else 'markers+text',
+        # Repelled labels are rendered separately below: suppress the original
+        # marker labels to avoid drawing each protein name twice.
+        text = if (repel_labels) '' else ~labels,
+        hovertext = ~labels,
+        hoverinfo = if (repel_labels) 'text' else 'all',
+        inherit = FALSE,
+        textposition = 'top center',
         textfont = list(size = 10, color=~color,colors=col),
         marker = list(size = 10,color=~color,colors=col )
       ) 
@@ -120,13 +133,95 @@ plotTetrahedron=function(data,
         z = edges11$V3[i:(i+1)],
         type = 'scatter3d',
         mode = 'lines+text',
-        line = list(color = edge_color[i], width = 10),
+        line = list(color = edge_color[i], width = 5),
         text=NULL
       )
     }
 
+    # Optional label separation in 3D. The scientific computations, point
+    # coordinates, edge definitions and original plot settings are unchanged.
+    # plotly.repel::add_text_repel() only supports 2D, not scatter3d.
+    if (isTRUE(repel_labels)) {
+      # NULL means no label limit. Shiny passes the selected slider value.
+      label_limit <- if (is.null(max_labels)) Inf else max(0, as.integer(max_labels))
+      # The four reference names already appear on the tetrahedron vertices.
+      # Do not label the same proteins again in the displaced point-label layer.
+      reference_labels <- setdiff(colnames(data), "NULL")
+      label_data <- final_good %>%
+        dplyr::filter(is.finite(comx), is.finite(comy), is.finite(comz),
+                      !is.na(labels), labels != "",
+                      !(as.character(labels) %in% reference_labels)) %>%
+        dplyr::arrange(dplyr::desc(max))
+      if (is.finite(label_limit)) {
+        label_data <- head(label_data, label_limit)
+      }
+
+      if (nrow(label_data) > 0) {
+        anchors <- as.matrix(label_data[, c("comx", "comy", "comz")])
+        positions <- anchors
+        # Deterministic, lightweight repulsion; moves labels, never markers.
+        # Since the displacements are in 3D, projected overlaps can still
+        # occur from some camera angles.
+        if (nrow(positions) > 1) {
+          for (iteration in seq_len(75)) {
+            for (i in seq_len(nrow(positions) - 1)) {
+              for (j in (i + 1):nrow(positions)) {
+                delta <- positions[i, ] - positions[j, ]
+                distance <- sqrt(sum(delta^2))
+                if (distance < 0.09) {
+                  if (distance < 1e-8) {
+                    angle <- (i * 7 + j * 11) * 2.39996323
+                    delta <- c(cos(angle), sin(angle), cos(angle * 0.7))
+                    distance <- sqrt(sum(delta^2))
+                  }
+                  shift <- 0.3 * (0.09 - min(distance, 0.09)) * delta / distance
+                  if (sum(shift^2) < 1e-12) shift <- 0.005 * delta / distance
+                  positions[i, ] <- positions[i, ] + shift
+                  positions[j, ] <- positions[j, ] - shift
+                }
+              }
+            }
+            positions <- positions + 0.02 * (anchors - positions)
+          }
+        }
+
+        # Connector line for every displaced label.
+        for (i in seq_len(nrow(label_data))) {
+          p <- p %>% add_trace(
+            x = c(anchors[i, 1], positions[i, 1]),
+            y = c(anchors[i, 2], positions[i, 2]),
+            z = c(anchors[i, 3], positions[i, 3]),
+            type = 'scatter3d', mode = 'lines',
+            inherit = FALSE, text = NULL,
+            line = list(color = 'rgba(100,100,100,0.5)', width = 2),
+            hoverinfo = 'skip', showlegend = FALSE
+          )
+        }
+        # Give the label trace its own matching coordinates and text.
+        # Inheriting the vertex trace's data can cause Plotly to mix
+        # two connector endpoints with many labels (recycle_columns error).
+        label_positions <- data.frame(
+          x = positions[, 1], y = positions[, 2], z = positions[, 3],
+          label = as.character(label_data$labels)
+        )
+        p <- p %>% add_trace(
+          data = label_positions,
+          x = ~x, y = ~y, z = ~z,
+          type = 'scatter3d', mode = 'text',
+          inherit = FALSE,
+          text = ~label,
+          textposition = 'top center',
+          textfont = list(size = 10, color = 'black'),
+          hoverinfo = 'skip', showlegend = FALSE
+        )
+      }
+    }
+
         p <- p %>% layout(scene = list(
-      camera = list(eye = list(x = 0, y = 0, z = 2.5),up  = list(x = 1, y = 0, z = 0))))     #This line is added to change the viewpoint for new tetrahedorn plot which has a side in 2d xy plane. 
+      camera = list(eye = list(x = 0, 
+                               y = 0, 
+                               z = 2.5),
+                    up  = list(x = 1, y = 0, z = 0))))     #This line is added to change the viewpoint for new tetrahedorn plot which has a side in 2d xy plane. 
 
   }##Luka##
   
@@ -205,14 +300,14 @@ get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
       x = ~index,
       y = ~score,
       type = "scattergl",
-      mode = "markers+text",
+      mode = "markers",
       marker = list(
         color = plot_data$point_color,
         size = 10
       ),
-      text = ~label,
-      textposition = "top center",
-      textfont = list(size = 9, color = "black"),
+     # text = ~label,
+    #  textposition = "top center",
+     # textfont = list(size = 9, color = "black"),
       hovertext = ~paste0(
         "<b>", protein, "</b><br>",
         "Category: ", category, "<br>",
@@ -281,6 +376,30 @@ get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
           align = "left"
         )
       )
+    ) %>%
+    config(
+      scrollZoom = TRUE,
+      displayModeBar = TRUE,
+      modeBarButtonsToRemove = c("lasso2d", "select2d")
+    ) |>
+    plotly.repel::add_text_repel(
+      data = subset(plot_data, label != ""),
+      x = ~index,
+      y = ~score,
+      text = ~label,
+      force = 2,
+      force_pull = 1,
+      box_padding = 0.5,
+      point_padding = 0.3,
+      direction = "both",
+      max_time_ms = 100,
+      max_iter = 1000,
+      max_overlaps = Inf,
+      segment = list(
+        color = "rgba(100,100,100,0.5)",
+        width = 1
+      ),
+      font = list(size = 10, color = "black")
     ) %>%
     config(
       scrollZoom = TRUE,
@@ -420,20 +539,26 @@ get_reciprocal_plot <- function(recip_data, poi) {
   x_max <- ceiling(x_range[2])
   x_ticks <- seq(x_min, x_max, by = max(1, ceiling((x_max - x_min) / 5)))
   
+  label_data <- subset(
+    recip_data,
+    !is.na(label) & label != "" &
+      is.finite(self) & is.finite(other)
+  )
+  
   # Create plot
   p <- plot_ly(recip_data) %>%
     add_trace(
       x = ~self,
       y = ~other,
       type = "scattergl",
-      mode = "markers+text",
+      mode = "markers",
       marker = list(
         color = recip_data$point_color,
         size = 8
       ),
-      text = ~label,
-      textposition = "top center",
-      textfont = list(size = 9, color = "black"),
+     # text = ~label,
+    #  textposition = "top center",
+    #  textfont = list(size = 9, color = "black"),
       hovertext = ~paste0(
         "<b>", protein, "</b><br>",
         "Category: ", category, "<br>",
@@ -504,7 +629,52 @@ get_reciprocal_plot <- function(recip_data, poi) {
           align = "left"
         )
       )
-    ) %>%
+    )
+  
+  # Add repelled labels only for selected proteins
+  if (nrow(label_data) > 0) {
+    p <- p %>%
+      plotly.repel::add_text_repel(
+        data = label_data,
+        x = ~self,
+        y = ~other,
+        text = ~label,
+        
+        # Prioritize proteins with larger deviations
+        priority = ~distances,
+        
+        # Label repulsion
+        force = 2,
+        force_pull = 0.8,
+        box_padding = 0.5,
+        point_padding = 0.3,
+        direction = "both",
+        
+        # Label placement
+        max_time_ms = 100,
+        max_iter = 1000,
+        max_overlaps = Inf,
+        seed = 42,
+        
+        # Connecting lines
+        segment = list(
+          color = "rgba(100,100,100,0.5)",
+          width = 1
+        ),
+        
+        # Label appearance
+        font = list(
+          size = 10,
+          color = "black"
+        ),
+        
+        # Reposition labels on interaction
+        on = c("render", "zoom", "resize")
+      )
+  }
+  
+  
+  p <- p %>%
     config(
       scrollZoom = TRUE,
       displayModeBar = TRUE,
