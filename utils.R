@@ -525,6 +525,15 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   return(tub)
 }
 
+# Label the top N proteins with the largest positive deviation above the fitted curve
+label_reciprocal_top_n <- function(recip_data, label_top_n = 10) {
+  ranked <- order(recip_data$distances, decreasing = TRUE)
+  top <- head(ranked[recip_data$distances[ranked] > 0], label_top_n)
+  recip_data$label <- ""
+  recip_data$label[top] <- recip_data$protein[top]
+  recip_data
+}
+
 get_reciprocal_plot <- function(recip_data, poi) {
   
   # Calculate very sparse y-axis ticks

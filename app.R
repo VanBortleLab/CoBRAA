@@ -185,9 +185,9 @@ ui <- dashboardPage(
           options = list(maxOptions = 10)
         ),
         sliderInput(
-          "protein_recip_threshold",
-          "Label Threshold:",
-          min = 0, max = 1, value = 0.5, step = 0.01
+          "protein_recip_labels",
+          "Number of Labels:",
+          min = 0, max = 100, value = 10, step = 1
         ),
         actionButton("protein_recip_plot", "Generate Plot", class = "btn-primary"),
         br(), br(),
@@ -478,7 +478,22 @@ server <- function(input, output, session) {
   # -------------------------------------------------------------------------
   # Create reactive value for download data (put this near top of server, before observeEvents)
   protein_recip_data <- reactiveVal(NULL)
-  
+  # Computed analysis for the last protein, so labels can be redrawn without recomputing
+  protein_recip_result <- reactiveVal(NULL)
+
+  render_recip_plot <- function() {
+    result <- protein_recip_result()
+    labeled <- label_reciprocal_top_n(result$data, input$protein_recip_labels)
+    p <- get_reciprocal_plot(labeled, result$poi)
+    output$main_plot <- renderPlotly(p)
+  }
+
+  # Relabel live when the slider moves, if the reciprocal plot is showing
+  observeEvent(input$protein_recip_labels, {
+    req(protein_recip_result(), input$mode == "protein", input$protein_submode == "reciprocal")
+    render_recip_plot()
+  }, ignoreInit = TRUE)
+
   observeEvent(input$protein_recip_plot, {
     req(input$protein_recip_poi)
     
@@ -490,15 +505,11 @@ server <- function(input, output, session) {
         setProgress(0.75, detail = "Reciprocating 🔄 .....")
         
         # Get reciprocal plot data
-        recip_data <- get_info_from_reciprocal_plot(
-          prot = input$protein_recip_poi,
-          label_threshold = input$protein_recip_threshold
-        )
-        
-        # Create plot
-        p <- get_reciprocal_plot(recip_data, input$protein_recip_poi)
-        
-        output$main_plot <- renderPlotly(p)
+        recip_data <- get_info_from_reciprocal_plot(prot = input$protein_recip_poi)
+
+        # Create plot (labels are applied from the slider)
+        protein_recip_result(list(data = recip_data, poi = input$protein_recip_poi))
+        render_recip_plot()
         
         # Prepare download data
         download_data <- recip_data %>% 
