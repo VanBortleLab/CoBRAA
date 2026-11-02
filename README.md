@@ -45,14 +45,15 @@ This Shiny application provides comprehensive tools for analyzing protein and co
 4. **Install required R packages:**
 
    ```r
-   install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix"))
+   install.packages(c("shiny","shinydashboard","shinyWidgets","plotly","dplyr","Matrix","colourpicker","remotes"))
+   remotes::install_github("bigomics/plotly.repel")  # not on CRAN
    ```
 
 5. **Run the app:**
    
    i) In terminal, run
    ```bash
-   Rscript runapp.R
+   Rscript runApp.R
    ```
 
    or,  
