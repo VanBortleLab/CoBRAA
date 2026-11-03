@@ -59,3 +59,23 @@ This Shiny application provides comprehensive tools for analyzing protein and co
    or,  
 
    ii) Open app.R in Rstudio and click <span style="color: #22c55e;">▶</span> **Run App** button
+
+### Optional: faster reciprocal analysis
+
+By default, each reciprocal plot decompresses two full data chunks, which takes about 2 seconds the first time you view a protein. A one-time conversion stores the chunks uncompressed, so the app reads only the selected protein (about 0.3 seconds).
+
+After downloading the data, run from the repository folder:
+
+```bash
+Rscript tools/convert_tem_chunks.R
+```
+
+- This writes a `.bin` file next to each `.Rdata` chunk in `data/tem_chunks/z/` and `data/tem_chunks/rz/`. It takes about 32 MB per chunk, or about 6.4 GB for the complete dataset.
+- It skips chunks that are already converted, so you can rerun it after downloading more data.
+- The app uses `.bin` files when they exist and the original `.Rdata` files otherwise, so results are the same either way.
+
+To check that the converted files give identical results and see the timings:
+
+```bash
+Rscript tests/test_reciprocal_bin.R
+```

@@ -411,10 +411,18 @@ get_popularity_corrected_plot <- function(poi, label_top_n = 50) {
 }
 
 
+# Read one protein's block of n values from a .bin chunk (see tools/convert_tem_chunks.R)
+read_tem_block <- function(file, block, n) {
+  con <- file(file, "rb")
+  on.exit(close(con))
+  seek(con, (block - 1) * n * 8)
+  readBin(con, "double", n = n, size = 8, endian = "little")
+}
+
 get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
-  
-  # Load protein index
-  protein_index <- readRDS("data/tem_chunks/protein_index.rds")
+
+  # Protein index is loaded once at startup in app.R
+  if (!exists("protein_index")) protein_index <- readRDS("data/tem_chunks/protein_index.rds")
   all_proteins <- protein_index$protein
   
   # Find protein index and chunk
@@ -428,8 +436,11 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   # CHECK IF FILES EXIST BEFORE LOADING ← NEW
   z_file <- sprintf("data/tem_chunks/z/%d.Rdata", chunk_num)
   rz_file <- sprintf("data/tem_chunks/rz/%d.Rdata", chunk_num)
-  
-  if (!file.exists(z_file) || !file.exists(rz_file)) {
+  z_bin <- sprintf("data/tem_chunks/z/%d.bin", chunk_num)
+  rz_bin <- sprintf("data/tem_chunks/rz/%d.bin", chunk_num)
+  has_bin <- file.exists(z_bin) && file.exists(rz_bin)
+
+  if (!has_bin && (!file.exists(z_file) || !file.exists(rz_file))) {
     stop(paste0(
       "INCOMPLETE DATA: Missing files for protein '", prot, "'.\n\n",
       "You have an incomplete version of the data folder.\n",
@@ -440,20 +451,23 @@ get_info_from_reciprocal_plot <- function(prot, label_threshold = 0.5) {
   }
   # ← END NEW CODE
   
-  # Load chunks (rest of function stays the same)
-  z_key <- as.character(chunk_num)
-  if (!exists(z_key, envir = z_cache)) {
-    z_cache[[z_key]] <- readRDS(z_file)
+  if (has_bin) {
+    # Fast path: read only this protein's row and column
+    row_data <- read_tem_block(z_bin, row_in_chunk, length(all_proteins))
+    col_data <- read_tem_block(rz_bin, row_in_chunk, length(all_proteins))
+  } else {
+    # Fallback: decompress the whole .Rdata chunk
+    z_key <- as.character(chunk_num)
+    if (!exists(z_key, envir = z_cache)) {
+      z_cache[[z_key]] <- readRDS(z_file)
+    }
+    if (!exists(z_key, envir = rz_cache)) {
+      rz_cache[[z_key]] <- readRDS(rz_file)
+    }
+    row_data <- z_cache[[z_key]][row_in_chunk, ]
+    col_data <- rz_cache[[z_key]][, row_in_chunk]
   }
-  if (!exists(z_key, envir = rz_cache)) {
-    rz_cache[[z_key]] <- readRDS(rz_file)
-  }
-  
-  # ... rest of your existing code stays exactly the same ...
-  # Extract data
-  row_data <- z_cache[[z_key]][row_in_chunk, ]
-  col_data <- rz_cache[[z_key]][, row_in_chunk]
-  
+
   tub <- data.frame(
     protein = all_proteins,
     self = as.numeric(row_data),
